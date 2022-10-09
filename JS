@@ -1,0 +1,142 @@
+$(function(){
+
+   $('.stream-table > tbody > tr').each(function(i,tr){
+  	
+  	// Добавление дополнительных блоков в карточку тренинга
+  	var a = $(tr).find('a');
+    a.prepend(`
+<div class="access">
+</div>
+    `);
+    a.append(`
+<div class="trainings-passed">
+  <div class="lessons-counter">Выполнено<br>уроков:</div>
+  <svg  viewbox="0 0 42 42" id="donut${i}" class="donut" style="display:none;">
+  <circle class="donut-hole" cx="21" cy="21" r="16">
+  </circle>
+  <circle class="donut-ring" cx="21" cy="21" r="16">
+  </circle>
+  <circle class="donut-segment" stroke-linecap="round" cx="21" cy="21" r="16">
+  </circle>
+  <g class="chart-text">
+    <text x="50%" y="50%" class="count-lessons">
+    </text>
+  </g>
+  </svg>
+</div>
+    `);
+
+    // Всего уроков
+    var total_lessons = a.find('div > b').text().trim().replace(/\D+/g,""); 
+    total_lessons = total_lessons == "" ? "0" : total_lessons;
+
+    // Проверка доступности тренинга и подсчёт пройденных уроков
+    var lessons_passed = 0;
+parseLessons(a.attr("href"));
+function parseLessons(href, rootTrening = false) {
+    $.get(href, function(data) {
+      var menuPageDom = $('<xxx></xxx>').append($.parseHTML(data));
+      lessons_passed += menuPageDom.find('.lesson-list').eq(0).find('li.user-state-accomplished').length;
+      donut_diagram("#donut"+i,total_lessons,lessons_passed);
+      var training = menuPageDom.find('.stream-table tr a');
+      var available_lessons = menuPageDom.find('.lesson-list li:not(.user-state-not_reached)').size();
+      rootTrening = !rootTrening ? this.url : rootTrening;
+      if(available_lessons > 0) {
+        $('.stream-table > tbody > tr > td > a[href="'+rootTrening+'"]').parents("tr").addClass('available');
+        return false;
+      }
+      training.each(function(){
+        parseLessons($(this).attr("href"), rootTrening);
+      });
+    });
+}
+
+
+    
+  });
+  
+  
+  // Добавление дополнительных блоков в карточку урока
+  $('.lesson-list li .title').each(function(i,a){
+    $(a).after(`
+    <div class="duration"><span class="minutes"></span> мин.</div>
+    `);
+  });
+  
+  
+  // Если в тренинге нет подтренингов
+  if($('.stream-table').length == 0) {
+  	$('body').addClass("lessons-page");
+    var total_lessons = $('.lesson-list li').length; 
+    var lessons_passed = $('.lesson-list li.user-state-accomplished').length;
+    if(total_lessons <= lessons_passed) $('#course-finish').html("Курс завершён!");
+    donut_diagram("#donut-lessons",total_lessons,lessons_passed);
+  } 
+
+  var schedule = $('.xdget-lessonSchedule');
+  if(schedule.length == 0 || schedule.text().trim() == "") $('body').addClass("empty-schedule");
+
+});
+
+
+  function check_and_set_year(d, m) {
+      var dateToday = new Date();
+      var dateCheck = new Date(dateToday.getFullYear(), m, d, 23, 59, 59);
+      if(dateToday.getTime() > dateCheck.getTime()) {
+        if((dateToday.getTime() - dateCheck.getTime()) < 1000*60*60*24*182.5) return dateToday.getFullYear();
+        else return dateToday.getFullYear()+1;
+      }
+      else {
+        if((dateCheck.getTime() - dateToday.getTime()) < 1000*60*60*24*182.5) return dateToday.getFullYear();
+        else return dateToday.getFullYear()-1;
+      }
+  }
+  function leadZero(n) { return (n < 10 ? '0' : '') + n; }
+
+  function donut_diagram(element,total,score){
+  
+    $(element).find('.donut-segment')
+      .animate(
+        { x: 100 },
+        {
+            duration: 2000,
+            step: function(now) { $(this).attr('stroke-dasharray', now*(score*100/total)/100+" "+(100-now*(score*100/total)/100));  }
+        });
+    $(element).find('.count-lessons').html(score+"/"+total);
+  }
+
+
+
+
+/* Анимация при загрузке */
+$(window).on("load", function(){
+    $('.stream-table tbody tr, .lesson-list li').addClass("anim-delay").addClass("startanim");
+    $('.xdget-lessonSchedule').addClass("anim-delay").addClass("startanim");
+    $(".days-to-exam, .access-lastday, .lessons-passed, .stickers-btn, .achiv-btn").addClass("anim-delay").addClass("startanim");
+    $(".btn-social-icon").addClass("anim-delay").addClass("startanim");
+    $('.xdget-training, .xdget-trainingsSystemPage').addClass("startanim");
+});
+
+/* Напоминание о СТОП-УРОКЕ */
+$(function() {
+var nextL = 'им';
+var Lnext = 'ам';
+
+if($('li.user-state-need_accomplish').is(":nth-last-child(2), :nth-last-child(3)"))
+{
+nextL = 'ему';
+Lnext = 'у';
+};
+
+var errorMessage = $('.errorMessage').text('Чтобы получить доступ к следующ'+nextL+' урок' +Lnext+', вам необходимо выполнить задание в этом уроке');
+var appendPlace = $('li.user-state-need_accomplish .vmiddle');
+var appendPlaceDesc = $('li.user-state-need_accomplish .description');
+errorMessage.each(function (i) {
+appendPlace.eq(i).append($(this));
+if ($(errorMessage).closest('.vmiddle').has('description')) {
+appendPlaceDesc.eq(i).append($(this));
+};
+$('.divider').remove();
+});
+});
+
